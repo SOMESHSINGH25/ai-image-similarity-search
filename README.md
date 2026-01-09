@@ -15,10 +15,15 @@ Approach
 The system uses a convolutional neural network (CNN) to extract feature vectors (embeddings) from images. These embeddings are compared using cosine similarity to find the most similar images. The project is designed to be extendable using Triplet Loss and Triplet Networks for better metric learning.
 
 Tech Stack
+
 Python
+
 TensorFlow / PyTorch
+
 OpenCV
+
 NumPy
+
 Scikit-learn
 
 Current Status
