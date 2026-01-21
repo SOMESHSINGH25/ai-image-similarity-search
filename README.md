@@ -67,29 +67,21 @@ AI_Image_Similarity_Search/
 
 python src/train_triplet.py
 
-markdown
-Copy code
 
 2. Prepare embeddings:
 
 python src/prepare_dataset.py
 
-markdown
-Copy code
 
 3. Run similarity search:
 
 python src/search.py
 
-yaml
-Copy code
 
 Results will be saved in:
 
 results/
 
-yaml
-Copy code
 
 ---
 
