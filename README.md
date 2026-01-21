@@ -105,4 +105,4 @@ For each run, the system:
 
 ## Conclusion
 
-This is a working AI-based image similarity search engine using deep learning and Triplet Loss.
+This is a working AI-based image similarity search engine using deep learning and Triplet Loss..
