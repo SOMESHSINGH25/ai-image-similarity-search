@@ -44,6 +44,7 @@ The system uses a Triplet Network to learn an embedding space where:
 ---
 
 ## Folder Structure
+```
 
 AI_Image_Similarity_Search/
 ├── data/
@@ -59,7 +60,7 @@ AI_Image_Similarity_Search/
 ├── README.md
 └── requirements.txt
 
----
+```
 
 ## How To Run
 
