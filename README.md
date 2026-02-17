@@ -197,290 +197,54 @@ This approach is optimal for CPU training on small datasets.
 
 ---
 
-## 📁 Project Structure
+## Folder Structure
 
-```
-ai-image-similarity-search/
-│
-├── src/                          # All source code
-│   ├── app.py                    # Streamlit web application (SimiliAI UI)
-│   ├── download_dataset.py       # Download CIFAR-10 and save as PNG images
-│   ├── split_dataset.py          # Split raw images into train/test sets
-│   ├── train_triplet.py          # Train the Triplet Network from scratch
-│   ├── prepare_dataset.py        # Extract embeddings using trained model
-│   └── search.py                 # Benchmark similarity search evaluation
-│
-├── data/                         # Generated — not tracked in git
-│   ├── raw/
-│   │   ├── cifar10_images/       # Raw downloaded images (10 class folders)
-│   │   ├── train/                # 80% split (1596 images)
-│   │   └── test/                 # 20% split (404 images)
-│   └── processed/
-│       ├── train_embeddings.npy  # (1596, 128) float32
-│       ├── train_labels.npy      # (1596,) int
-│       ├── train_image_paths.npy # (1596,) str
-│       ├── test_embeddings.npy   # (404, 128) float32
-│       ├── test_labels.npy       # (404,) int
-│       └── test_image_paths.npy  # (404,) str
-│
-├── models/                       # Generated — not tracked in git
-│   └── embedding_model.keras     # Trained base CNN (128-dim output)
-│
-├── results/                      # Generated — not tracked in git
-│   ├── training_curves.png       # Train/val loss plot
-│   └── benchmark_*.png           # Search result visualisations
-│
-├── logs/                         # Generated — not tracked in git
-│   └── training_log.csv          # Epoch-by-epoch loss log
-│
-├── .gitignore
-└── README.md
-```
+AI_Image_Similarity_Search/
+├── data/
+│ ├── raw/
+│ └── processed/
+├── models/
+│ └── embedding_model.keras
+├── results/
+├── src/
+│ ├── train_triplet.py
+│ ├── prepare_dataset.py
+│ └── search.py
+├── README.md
+└── requirements.txt
 
 ---
 
-## 📊 Dataset
+## How To Run
 
-**CIFAR-10** — a benchmark dataset of 60,000 32×32 colour images across 10 classes.
+1. Train the model:
 
-| Class | Index | Emoji | Description |
-|-------|-------|-------|-------------|
-| airplane | 0 | ✈️ | Fixed-wing aircraft |
-| automobile | 1 | 🚗 | Four-wheeled vehicle |
-| bird | 2 | 🐦 | Feathered vertebrate |
-| cat | 3 | 🐱 | Domestic feline |
-| deer | 4 | 🦌 | Hoofed mammal |
-| dog | 5 | 🐶 | Domestic canine |
-| frog | 6 | 🐸 | Amphibian species |
-| horse | 7 | 🐴 | Large equine mammal |
-| ship | 8 | 🚢 | Large watercraft |
-| truck | 9 | 🚛 | Heavy goods vehicle |
+python src/train_triplet.py
 
-**SimiliAI uses 2,000 images** (200 per class) — well above the 1,000+ requirement — split as:
-- **Train:** 1,596 images (80%)
-- **Test:** 404 images (20%)
 
-Images are saved as PNG at native 32×32 resolution with sharpening applied (`PIL.ImageFilter.UnsharpMask`) before being resized to 64×64 during training.
+2. Prepare embeddings:
 
----
+python src/prepare_dataset.py
 
-## 🛠️ Setup & Installation
 
-### Prerequisites
+3. Run similarity search:
 
-- Python 3.12
-- Windows / macOS / Linux
-- ~2 GB free disk space
-- No GPU required (CPU training supported)
+python src/search.py
 
-### 1. Clone the Repository
 
-```bash
-git clone https://github.com/yourusername/ai-image-similarity-search.git
-cd ai-image-similarity-search
-```
+Results will be saved in:
 
-### 2. Install Dependencies
+results/
 
-```bash
-pip install tensorflow pillow numpy streamlit matplotlib tqdm pandas
-```
-
-Or if you have a `requirements.txt`:
-
-```bash
-pip install -r requirements.txt
-```
-
-### Requirements
-
-```
-tensorflow>=2.15.0
-pillow>=10.0.0
-numpy>=1.24.0
-streamlit>=1.30.0
-matplotlib>=3.7.0
-tqdm>=4.65.0
-pandas>=2.0.0
-```
 
 ---
 
-## 🚀 Running the Pipeline
+## Current Status
 
-Run these scripts **in order** from the project root directory:
-
-### Step 1 — Download Dataset
-
-```bash
-py -3.12 src/download_dataset.py
-```
-
-Downloads CIFAR-10 via Keras and saves **2,000 images** as PNGs with sharpening applied.
-
-**Output:** `data/raw/cifar10_images/` (10 class subfolders)
-
-**Expected time:** 1–3 minutes (download dependent)
-
----
-
-### Step 2 — Split Dataset
-
-```bash
-py -3.12 src/split_dataset.py
-```
-
-Splits the raw images 80/20 into train and test sets.
-
-**Output:** `data/raw/train/` and `data/raw/test/`
-
-**Expected output:**
-```
-Class 0: 160 train, 40 test
-Class 1: 160 train, 40 test
-...
-✅ Dataset split completed!
-```
-
----
-
-### Step 3 — Train Triplet Network
-
-```bash
-py -3.12 src/train_triplet.py
-```
-
-Trains the CNN from scratch using triplet loss for up to 20 epochs with early stopping.
-
-**Output:**
-- `models/embedding_model.keras` — trained base model
-- `results/training_curves.png` — loss plot
-- `logs/training_log.csv` — epoch log
-
-**Expected time:** 2–5 minutes per epoch on CPU (20–60 min total)
-
-**Expected output:**
-```
-TRIPLET NETWORK TRAINING  (Fast Random Triplets)
-Loading all images into memory...
-Building training triplets... 8000
-Building validation triplets... 1000
-Epoch 1/20 — loss: 8.83 — val_loss: 4.91
-Epoch 2/20 — loss: 6.44 — val_loss: 0.43
-...
-✅ Base embedding model saved to: ../models/embedding_model.keras
-```
-
-> **Note:** Training will automatically stop early if validation loss stops improving for 5 consecutive epochs.
-
----
-
-### Step 4 — Extract Embeddings
-
-```bash
-py -3.12 src/prepare_dataset.py
-```
-
-Runs all 2,000 images through the trained model and saves their 128-dim embedding vectors.
-
-**Output:** 6 `.npy` files in `data/processed/`
-
-**Expected time:** 3–5 minutes
-
-**Expected output:**
-```
-✅ TRAIN done — Images: 1596 — Shape: (1596, 128)
-✅ TEST done  — Images: 404  — Shape: (404, 128)
-```
-
----
-
-### Step 5 — Evaluate Search (Optional)
-
-```bash
-py -3.12 src/search.py
-```
-
-Runs a 10-query benchmark evaluation and saves result visualisations to `results/`.
-
-**Expected output:**
-```
-Query 1/10 — ship — Correct Top-5: 1/5
-Query 2/10 — horse — Correct Top-5: 3/5
-...
-Top-5 Accuracy: ~40–60%
-```
-
----
-
-### Step 6 — Launch the App
-
-```bash
-streamlit run src/app.py
-```
-
-Opens SimiliAI in your browser at `http://localhost:8501`
-
----
-
-## 🖥️ Streamlit Application
-
-SimiliAI features a full-featured dark-themed web UI with four tabs:
-
-### ⬡ Random Query
-- Picks a random test image
-- Searches the train database using Euclidean k-NN
-- Shows query metadata, accuracy badge (colour-coded green/yellow/red)
-- Displays per-result breakdown with similarity scores and distances
-- Embedding statistics panel (min/max distance, avg similarity)
-- Retrieved class distribution bar chart
-- Full results grid with rank pills, match/miss indicators
-
-### ⬡ Upload Image
-- Upload any JPG/PNG/WEBP image from your computer
-- Model embeds it in real time using the trained CNN
-- Predicts the most likely class based on top-K neighbours
-- Shows embedding norm, nearest distance, average similarity
-- Full neighbours grid with similarity score bars
-
-### ⬡ Training Curves
-- Displays the training/validation loss plot
-- Shows summary stats: epochs trained, best val loss, best epoch, total loss drop
-- Styled epoch log table with best rows highlighted
-
-### ⬡ How It Works
-- Explains triplet networks, triplet loss formula, and random triplet sampling
-- Layer-by-layer CNN architecture diagram
-- 4-step search pipeline breakdown
-- Technical rationale for design choices
-
----
-
-## 📈 Results
-
-| Metric | Value |
-|--------|-------|
-| Training images | 1,596 |
-| Test images | 404 |
-| Embedding dimension | 128 |
-| Best val loss | ~0.19–0.43 |
-| Top-5 accuracy (benchmark) | **40–60%** |
-| Search latency | < 100ms |
-| Training time (CPU) | ~30–60 min |
-
-> Top-5 accuracy varies per run since the benchmark queries are randomly selected. Some classes (bird, deer, horse) perform better than others (airplane vs ship confusion is common due to visual similarity).
-
-### Training Curve (Example)
-
-```
-Epoch  1 │ train: 8.83 │ val: 4.91  ← learning fast
-Epoch  2 │ train: 6.44 │ val: 0.43  ← major improvement
-Epoch  3 │ train: 4.68 │ val: 0.28  ← converging
-Epoch  4 │ train: 3.57 │ val: 0.20  ← good separation
-Epoch  5 │ train: 2.91 │ val: 0.20  ← plateau
-...
-⏹ Early stopping at epoch ~10–15
-```
+- Working similarity search system
+- 2000 images indexed
+- Top-5 accuracy ~36%
+- Embedding size: 128
 
 ---
 
@@ -524,43 +288,6 @@ Semi-hard mining calls the model during data generation for every single triplet
 
 ---
 
-## ⚠️ Limitations & Future Work
+## Conclusion
 
-### Current Limitations
-
-- **Small dataset** — 2,000 images limits accuracy. More data would substantially improve results.
-- **Low resolution** — CIFAR-10 images are 32×32 pixels, upscaled to 64×64. Visual detail is limited.
-- **10 fixed classes** — the model only understands CIFAR-10 categories. Uploaded images of other objects may produce unexpected results.
-- **CPU training** — training from scratch on CPU is slow. A GPU would reduce training time from hours to minutes.
-
-### Possible Improvements
-
-| Improvement | Expected Impact |
-|-------------|----------------|
-| Use 5,000–10,000 images | +10–20% accuracy |
-| GPU training | 10–50× faster training |
-| Semi-hard or batch-hard mining | Better embedding separation |
-| Data augmentation (flip, crop, jitter) | Better generalisation |
-| Deeper CNN (ResNet-style) | Higher quality features |
-| FAISS vector index | Sub-millisecond search on millions of images |
-| t-SNE / UMAP visualisation | Visualise the embedding space |
-
----
-
-## 👤 Author
-
-**Deep Learning Project** — AI-Powered Image Similarity Search and Recommendation System
-
-Built with TensorFlow, Streamlit, and NumPy. Trained entirely from scratch on CIFAR-10.
-
----
-
-## 📄 License
-
-This project is for educational purposes. Dataset (CIFAR-10) credit: Krizhevsky, 2009.
-
----
-
-<div align="center">
-<sub>SimiliAI — Neural Image Search · Triplet Network · CIFAR-10 · Trained from Scratch</sub>
-</div>
+This is a working AI-based image similarity search engine using deep learning and Triplet Loss.
