@@ -196,7 +196,7 @@ SimiliAI uses **pre-built random triplet sampling**:
 This approach is optimal for CPU training on small datasets.
 
 ---
-
+```
 ## Folder Structure
 
 AI_Image_Similarity_Search/
@@ -214,7 +214,7 @@ AI_Image_Similarity_Search/
 └── requirements.txt
 
 ---
-
+```
 ## How To Run
 
 1. Train the model:
