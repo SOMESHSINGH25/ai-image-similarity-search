@@ -4,69 +4,145 @@ from PIL import Image
 from tqdm import tqdm
 import tensorflow as tf
 
-# Paths
-RAW_DATA_DIR = "../data/raw/cifar10_images"
-PROCESSED_DIR = "../data/processed"
+# =========================
+# PATHS
+# =========================
+TRAIN_DIR            = "../data/raw/train"
+TEST_DIR             = "../data/raw/test"
+PROCESSED_DIR        = "../data/processed"
 EMBEDDING_MODEL_PATH = "../models/embedding_model.keras"
 
-os.makedirs(PROCESSED_DIR, exist_ok=True)
-
-# Load the trained embedding model
-print("Loading embedding model...")
-model = tf.keras.models.load_model(EMBEDDING_MODEL_PATH, compile=False)
-print("Model loaded successfully!")
-
-# The model you trained IS the embedding model (128-dim output)
-# No need to remove layers - it's already the base CNN
-embedding_model = model
-
-print(f"Embedding model output shape: {embedding_model.output_shape}")
-
-# Image preprocessing function
+# =========================
+# IMAGE PREPROCESS
+# =========================
 def preprocess_image(img_path):
     img = Image.open(img_path).convert("RGB")
-    img = img.resize((64, 64))  # Your training used IMG_SIZE=64
+    img = img.resize((64, 64), Image.BICUBIC)
     img_array = np.array(img, dtype=np.float32) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
     return img_array
 
-embeddings = []
-labels = []
-image_paths = []
+# =========================
+# LOAD EMBEDDING MODEL
+# Handles both cases:
+#   1. Saved model is already the base (1 input)
+#   2. Saved model is the training model (3 inputs)
+#      → extract the sub-model named "embedding_model"
+# =========================
+def load_embedding_model(path):
+    loaded = tf.keras.models.load_model(path, compile=False)
 
-print("Processing images and creating embeddings...")
-for label in sorted(os.listdir(RAW_DATA_DIR)):
-    label_dir = os.path.join(RAW_DATA_DIR, label)
-    if not os.path.isdir(label_dir):
-        continue
-    
-    for img_file in tqdm(os.listdir(label_dir), desc=f"Label {label}"):
-        img_path = os.path.join(label_dir, img_file)
+    # Check how many inputs it has
+    n_inputs = len(loaded.inputs)
+    print(f"   Loaded model inputs: {n_inputs}")
+
+    if n_inputs == 1:
+        # Already the base embedding model
+        print("   ✅ Base embedding model detected")
+        return loaded
+    elif n_inputs == 3:
+        # Training model — extract base from it
+        print("   ⚠️  Training model detected — extracting base embedding model...")
+        for layer in loaded.layers:
+            if hasattr(layer, 'name') and layer.name == "embedding_model":
+                print(f"   ✅ Found sub-model: '{layer.name}'")
+                return layer
+        # Fallback: find any sub-model with 1 input
+        for layer in loaded.layers:
+            if isinstance(layer, tf.keras.Model) and len(layer.inputs) == 1:
+                print(f"   ✅ Found sub-model: '{layer.name}'")
+                return layer
+        raise ValueError(
+            "Could not extract base embedding model from training model.\n"
+            "Please retrain and ensure base_model.save() is called, not train_model.save()"
+        )
+    else:
+        raise ValueError(f"Unexpected number of model inputs: {n_inputs}")
+
+# =========================
+# PROCESS ONE SPLIT
+# =========================
+def process_split(embedding_model, split_dir, split_name):
+    embeddings  = []
+    labels      = []
+    image_paths = []
+
+    print(f"\nProcessing {split_name} set from: {split_dir}")
+
+    for label_str in sorted(os.listdir(split_dir)):
+        label_dir = os.path.join(split_dir, label_str)
+        if not os.path.isdir(label_dir):
+            continue
         try:
-            img_array = preprocess_image(img_path)
-            embedding = embedding_model.predict(img_array, verbose=0)[0]
-            
-            embeddings.append(embedding)
-            labels.append(int(label))
-            image_paths.append(img_path)
-        except Exception as e:
-            print(f"Error processing {img_path}: {e}")
+            label = int(label_str)
+        except ValueError:
+            print(f"  Skipping non-numeric folder: {label_str}")
             continue
 
-# Convert to numpy arrays
-embeddings = np.array(embeddings)
-labels = np.array(labels)
-image_paths = np.array(image_paths)
+        img_files = [
+            f for f in os.listdir(label_dir)
+            if f.lower().endswith(".png")
+        ]
 
-# Save embeddings, labels, and paths
-np.save(os.path.join(PROCESSED_DIR, "embeddings.npy"), embeddings)
-np.save(os.path.join(PROCESSED_DIR, "labels.npy"), labels)
-np.save(os.path.join(PROCESSED_DIR, "image_paths.npy"), image_paths)
+        for img_file in tqdm(img_files, desc=f"  Class {label_str}"):
+            img_path = os.path.join(label_dir, img_file)
+            try:
+                img_array = preprocess_image(img_path)
+                embedding = embedding_model.predict(img_array, verbose=0)[0]
+                embeddings.append(embedding)
+                labels.append(label)
+                image_paths.append(img_path)
+            except Exception as e:
+                print(f"  ⚠️  Error on {img_path}: {e}")
 
-print(f"\n{'='*60}")
-print(f"✓ Done! Processed {len(embeddings)} images.")
-print(f"✓ Embedding dimension: {embeddings.shape[1]}")
-print(f"✓ Embeddings saved to {PROCESSED_DIR}/embeddings.npy")
-print(f"✓ Labels saved to {PROCESSED_DIR}/labels.npy")
-print(f"✓ Image paths saved to {PROCESSED_DIR}/image_paths.npy")
-print(f"{'='*60}")
+    embeddings  = np.array(embeddings)
+    labels      = np.array(labels)
+    image_paths = np.array(image_paths)
+
+    np.save(os.path.join(PROCESSED_DIR, f"{split_name}_embeddings.npy"),  embeddings)
+    np.save(os.path.join(PROCESSED_DIR, f"{split_name}_labels.npy"),      labels)
+    np.save(os.path.join(PROCESSED_DIR, f"{split_name}_image_paths.npy"), image_paths)
+
+    print(f"\n  ✅ {split_name.upper()} done")
+    print(f"     Images processed : {len(embeddings)}")
+    print(f"     Embedding shape  : {embeddings.shape}")
+    print(f"     Saved to         : {PROCESSED_DIR}")
+
+    return len(embeddings)
+
+# =========================
+# MAIN
+# =========================
+if __name__ == "__main__":
+    print("=" * 60)
+    print("  EMBEDDING EXTRACTION")
+    print("=" * 60)
+
+    if not os.path.exists(EMBEDDING_MODEL_PATH):
+        print(f"\n❌ Model not found: {EMBEDDING_MODEL_PATH}")
+        print("   Please run train_triplet.py first.")
+        exit(1)
+
+    if not os.path.exists(TRAIN_DIR):
+        print(f"\n❌ Train dir not found: {TRAIN_DIR}")
+        exit(1)
+
+    if not os.path.exists(TEST_DIR):
+        print(f"\n❌ Test dir not found: {TEST_DIR}")
+        exit(1)
+
+    os.makedirs(PROCESSED_DIR, exist_ok=True)
+
+    print(f"\nLoading model from: {EMBEDDING_MODEL_PATH}")
+    embedding_model = load_embedding_model(EMBEDDING_MODEL_PATH)
+    print(f"   Output shape: {embedding_model.output_shape}")
+
+    train_count = process_split(embedding_model, TRAIN_DIR, "train")
+    test_count  = process_split(embedding_model, TEST_DIR,  "test")
+
+    print("\n" + "=" * 60)
+    print("  EXTRACTION COMPLETE")
+    print(f"  Train embeddings : {train_count}")
+    print(f"  Test  embeddings : {test_count}")
+    print(f"  Saved to         : {PROCESSED_DIR}")
+    print("=" * 60)
