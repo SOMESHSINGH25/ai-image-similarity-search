@@ -235,7 +235,7 @@ def main():
 
     best_val = min(history.history["val_loss"])
     print("\n" + "=" * 60)
-    print("  TRAINING COMPLETE")
+    print("  TRAINING COMP  LETE")
     print(f"  Best val loss : {best_val:.4f}")
     print(f"  Model saved   : {MODEL_OUT}")
     print("=" * 60)
